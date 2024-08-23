@@ -816,3 +816,97 @@ class Hm1200Decode11(EventsResponse):
 
 class Hm1200Decode12(EventsResponse):
     """ 1161-Series Inverter major events log """
+
+class Hms800Decode0B(StatusResponse):
+    """ 1141-series mirco-inverters status data """
+
+    @property
+    def dc_voltage_0(self):
+        """ String 1 VDC """
+        return self.unpack('>H', 2)[0]/10
+    @property
+    def dc_current_0(self):
+        """ String 1 ampere """
+        return self.unpack('>H', 6)[0]/100
+    @property
+    def dc_power_0(self):
+        """ String 1 watts """
+        return self.unpack('>H', 10)[0]/10
+    @property
+    def dc_energy_total_0(self):
+        """ String 1 total energy in Wh """
+        return self.unpack('>L', 14)[0]
+    @property
+    def dc_energy_daily_0(self):
+        """ String 1 daily energy in Wh """
+        return self.unpack('>H', 22)[0]
+    @property
+    def dc_irradiation_0(self):
+        """ String 1 irratiation in percent """
+        if self.inv_strings is None:
+          return None
+        if self.inv_strings[0]['s_maxpower'] == 0:
+            return 0.00
+        return round(self.unpack('>H', 10)[0]/10/self.inv_strings[0]['s_maxpower']*100, 3)
+
+    @property
+    def dc_voltage_1(self):
+        """ String 2 VDC """
+        return self.unpack('>H', 4)[0]/10
+    @property
+    def dc_current_1(self):
+        """ String 2 ampere """
+        return self.unpack('>H', 8)[0]/100
+    @property
+    def dc_power_1(self):
+        """ String 2 watts """
+        return self.unpack('>H', 12)[0]/10
+    @property
+    def dc_energy_total_1(self):
+        """ String 2 total energy in Wh """
+        return self.unpack('>L', 18)[0]
+    @property
+    def dc_energy_daily_1(self):
+        """ String 2 daily energy in Wh """
+        return self.unpack('>H', 24)[0]
+    @property
+    def dc_irradiation_1(self):
+        """ String 2 irratiation in percent """
+        if self.inv_strings is None:
+          return None
+        if self.inv_strings[1]['s_maxpower'] == 0:
+            return 0.00
+        return round(self.unpack('>H', 12)[0]/10/self.inv_strings[1]['s_maxpower']*100, 3)
+
+    @property
+    def ac_voltage_0(self):
+        """ Phase 1 VAC """
+        return self.unpack('>H', 26)[0]/10
+    @property
+    def ac_current_0(self):
+        """ Phase 1 ampere """
+        return self.unpack('>H', 34)[0]/100
+    @property
+    def ac_power_0(self):
+        """ Phase 1 watts """
+        return self.unpack('>H', 30)[0]/10
+    @property
+    def ac_frequency_0(self):
+        """ Grid frequency in Hertz """
+        return self.unpack('>H', 28)[0]/100
+    @property
+    def ac_reactive_power_0(self):
+        """ reactive power """
+        return self.unpack('>H', 32)[0]/10
+    @property
+    def powerfactor(self):
+        """ Powerfactor """
+        return self.unpack('>H', 36)[0]/1000
+    @property
+    def temperature(self):
+        """ Inverter temperature in °C """
+        return self.unpack('>h', 38)[0]/10
+    @property
+    def event_count(self):
+        """ Event counter """
+        return self.unpack('>H', 40)[0]

@@ -7,6 +7,7 @@ Hoymiles micro-inverters python shared code
 
 import struct
 import time
+from .cmt2300a import *
 import re
 from datetime import datetime
 import logging
@@ -131,6 +132,7 @@ class ResponseDecoderFactory:
                 ('Hm300', r'^1121........'),
                 ('Hm600', r'^1141........'),
                 ('Hm1200', r'^1161........'),
+                ('Hms800', r'^1144........'),
                 ]
         ser_str = str(self.inverter_ser)
 
@@ -320,6 +322,86 @@ class InverterPacketFragment:
         size = len(self.frame)
         channel = f' channel {self.ch_rx}' if self.ch_rx else ''
         return f"Received {size} bytes{channel}: {hexify_payload(self.frame)}"
+
+class HoymilesCMT:
+    """Hoymiles CMT Interface"""
+    txpower = 'max'
+    rx_error = 0
+
+    def __init__(self, **radio_config):
+        """
+        Claim radio device
+        """
+        radio = CMT2300A(fifoCS = 0, ctrlCS = 1, freq = 2000000)
+        if not radio.reset(RegionCfg.EUROPE):
+            logging.warning("could not connect to CMT2300A radio")
+            self.mCmtAvail = False
+        else:
+            self.mCmtAvail = True
+            radio.goRx()
+
+        self.radio = radio
+
+
+    def transmit(self, packet, txpower=None):
+        self.radio.loop()
+        if HOYMILES_TRANSACTION_LOGGING:
+            c_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+            logging.debug(f'{c_datetime} Transmit {len(packet)} bytes: {hexify_payload(packet)}')
+            print(f'{c_datetime} Transmit {len(packet)} bytes: {hexify_payload(packet)}')
+
+        self.radio.tx(packet)
+
+
+    def receive(self, timeout=None):
+        if not timeout:
+            timeout=5e8
+
+        self.radio.loop()
+        self.radio.goRx()
+
+        received_sth=False
+        # Receive: Loop
+        t_end = time.monotonic_ns() + timeout
+        while time.monotonic_ns() < t_end:
+
+            cmtStatus, payload = self.radio.getRx()
+            if payload is not None:
+
+                # Data in CT buffer, read it
+                self.rx_error = 0
+                self.rx_channel_ack = True
+                self.rx_channel = self.radio.mCurCh
+                self.tx_channel = self.radio.mCurCh
+                t_end = time.monotonic_ns()+5e8
+                print(payload)
+
+                fragment = InverterPacketFragment(
+                        payload=bytes(payload),
+                        ch_rx=self.rx_channel, ch_tx=self.tx_channel,
+                        time_rx=datetime.now()
+                        )
+                received_sth=True
+                yield fragment
+
+            else:
+
+                # No data in nRF rx buffer, search and wait
+                # Channel lock in (not currently used)
+                self.rx_error = self.rx_error + 1
+                if self.rx_error > 1:
+                    self.rx_channel_ack = False
+                self.radio.loop()
+                # Channel hopping
+                #if self.next_rx_channel():
+                #    self.radio.stopListening()
+                #    self.radio.setChannel(self.rx_channel)
+                #    self.radio.startListening()
+
+
+        if not received_sth:
+            raise TimeoutError
+
 
 class HoymilesNRF:
     """Hoymiles NRF24 Interface"""

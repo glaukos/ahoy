@@ -365,8 +365,10 @@ if __name__ == '__main__':
     init_logging(ahoy_config)
 
     # Prepare for multiple transceivers, makes them configurable
-    for radio_config in ahoy_config.get('nrf', [{}]):
+    for radio_config in ahoy_config.get('nrf', []):
         hmradio = hoymiles.HoymilesNRF(**radio_config)
+    for radio_config in ahoy_config.get('cmt', []):
+        hmradio = hoymiles.HoymilesCMT(**radio_config)
 
     # create MQTT - client object
     mqtt_client = None
