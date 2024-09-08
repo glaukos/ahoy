@@ -332,7 +332,9 @@ class HoymilesCMT:
         """
         Claim radio device
         """
-        radio = CMT2300A(fifoCS = 0, ctrlCS = 1, freq = 2000000)
+        radio = CMT2300A(radio_config.get('fcsb_pin', 22),
+                         radio_config.get('csb_pin', 18),
+                         radio_config.get('spispeed', 1000000))
         if not radio.reset(RegionCfg.EUROPE):
             logging.warning("could not connect to CMT2300A radio")
             self.mCmtAvail = False
@@ -348,7 +350,6 @@ class HoymilesCMT:
         if HOYMILES_TRANSACTION_LOGGING:
             c_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
             logging.debug(f'{c_datetime} Transmit {len(packet)} bytes: {hexify_payload(packet)}')
-            print(f'{c_datetime} Transmit {len(packet)} bytes: {hexify_payload(packet)}')
 
         self.radio.tx(packet)
 
@@ -374,7 +375,6 @@ class HoymilesCMT:
                 self.rx_channel = self.radio.mCurCh
                 self.tx_channel = self.radio.mCurCh
                 t_end = time.monotonic_ns()+5e8
-                print(payload)
 
                 fragment = InverterPacketFragment(
                         payload=bytes(payload),

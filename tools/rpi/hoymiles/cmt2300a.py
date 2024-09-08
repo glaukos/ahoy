@@ -1,5 +1,6 @@
 import spidev
 from enum import Enum
+import RPi.GPIO as GPIO
 import time
 
 class RegionCfg(Enum):
@@ -140,16 +141,14 @@ CMT2300A_MASK_PKT_OK_FLG   =     0x01
 
 class CMT2300A:
     def __init__(self, fifoCS: int, ctrlCS: int, freq: int):
-        self.fifospi = spidev.SpiDev()
-        self.fifospi.open(0, fifoCS)
-        self.fifospi.threewire = True
-        self.fifospi.mode = 0
-        self.fifospi.max_speed_hz = freq
-        self.ctrlspi = spidev.SpiDev()
-        self.ctrlspi.open(0, ctrlCS)
-        self.ctrlspi.mode = 0
-        self.ctrlspi.threewire = True
-        self.ctrlspi.max_speed_hz = freq
+        self.spi = spidev.SpiDev()
+        self.spi.open(0, 0)
+        self.spi.threewire = True
+        self.spi.mode = 0
+        self.spi.no_cs = True
+        self.spi.max_speed_hz = freq
+        self.fifoCS = fifoCS
+        self.ctrlCS = ctrlCS
         self.mTxPending  = False
         self.mInRxMode   = False
         self.mCusIntFlag = 0x00
@@ -157,10 +156,14 @@ class CMT2300A:
         self.mRqstCh     = 0xff
         self.mCurCh      = 0x20
         self.found       = False
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(fifoCS, GPIO.OUT)
+        GPIO.setup(ctrlCS, GPIO.OUT)
+        GPIO.output(fifoCS, 1)
+        GPIO.output(ctrlCS, 1)
 
     def __del__(self):
-        self.ctrlspi.close()
-        self.fifospi.close()
+        self.spi.close()
 
     def loop(self):
         if self.mTxPending:
@@ -422,23 +425,42 @@ class CMT2300A:
             return self.__readReg(CMT2300A_CUS_MODE_STA) & CMT2300A_MASK_CHIP_MODE_STA
 
     def __readReg(self, reg):
-        ret = self.ctrlspi.xfer([reg | 0x80, None])
+        GPIO.output(self.ctrlCS, 0)
+        time.sleep(0.00001)
+        ret = self.spi.xfer([reg | 0x80, None])
+        time.sleep(0.00001)
+        GPIO.output(self.ctrlCS, 1)
         return ret[1]
     
     def __writeReg(self, reg, value):
-        self.ctrlspi.xfer([reg & 0x7F, value])
+        GPIO.output(self.ctrlCS, 0)
+        time.sleep(0.00001)
+        self.spi.writebytes([reg & 0x7F, value])
+        time.sleep(0.00001)
+        GPIO.output(self.ctrlCS, 1)
 
     def __readFIFO(self):
-        len = self.fifospi.xfer([None])[0]
+        GPIO.output(self.fifoCS, 0)
+        time.sleep(0.00001)
+        len = self.spi.xfer([None])[0]
+        time.sleep(0.00001)
+        GPIO.output(self.fifoCS, 1)
         l = [None] * len
         for i in range(0, len):
-            l[i] = self.fifospi.xfer([None])[0]
+            GPIO.output(self.fifoCS, 0)
             time.sleep(0.00001)
+            l[i] = self.spi.xfer([None])[0]
+            time.sleep(0.00001)
+            GPIO.output(self.fifoCS, 1)
         return l
 
     def __writeFIFO(self, data):
         for i in data:
-            self.fifospi.xfer([i])
+            GPIO.output(self.fifoCS, 0)
             time.sleep(0.00001)
+            self.spi.writebytes([i])
+            time.sleep(0.00001)
+            GPIO.output(self.fifoCS, 1)
+            time.sleep(0.001)
 
     
