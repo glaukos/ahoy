@@ -427,10 +427,11 @@ class CMT2300A:
     def __readReg(self, reg):
         GPIO.output(self.ctrlCS, 0)
         time.sleep(0.00001)
-        ret = self.spi.xfer([reg | 0x80, None])
+        self.spi.writebytes([reg | 0x80])
+        ret = self.spi.readbytes(1)[0]
         time.sleep(0.00001)
         GPIO.output(self.ctrlCS, 1)
-        return ret[1]
+        return ret
     
     def __writeReg(self, reg, value):
         GPIO.output(self.ctrlCS, 0)
@@ -442,14 +443,14 @@ class CMT2300A:
     def __readFIFO(self):
         GPIO.output(self.fifoCS, 0)
         time.sleep(0.00001)
-        len = self.spi.xfer([None])[0]
+        len = self.spi.readbytes(1)[0]
         time.sleep(0.00001)
         GPIO.output(self.fifoCS, 1)
         l = [None] * len
         for i in range(0, len):
             GPIO.output(self.fifoCS, 0)
             time.sleep(0.00001)
-            l[i] = self.spi.xfer([None])[0]
+            l[i] = self.spi.readbytes(1)[0]
             time.sleep(0.00001)
             GPIO.output(self.fifoCS, 1)
         return l
