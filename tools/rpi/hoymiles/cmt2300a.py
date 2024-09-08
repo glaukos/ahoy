@@ -147,6 +147,7 @@ class CMT2300A:
         self.spi.mode = 0
         self.spi.no_cs = True
         self.spi.max_speed_hz = freq
+        self.spifreq = freq
         self.fifoCS = fifoCS
         self.ctrlCS = ctrlCS
         self.mTxPending  = False
@@ -426,42 +427,37 @@ class CMT2300A:
 
     def __readReg(self, reg):
         GPIO.output(self.ctrlCS, 0)
-        time.sleep(0.00001)
+        time.sleep(2 / self.spifreq)
         self.spi.writebytes([reg | 0x80])
         ret = self.spi.readbytes(1)[0]
-        time.sleep(0.00001)
+        time.sleep(2 / self.spifreq)
         GPIO.output(self.ctrlCS, 1)
         return ret
     
     def __writeReg(self, reg, value):
         GPIO.output(self.ctrlCS, 0)
-        time.sleep(0.00001)
+        time.sleep(2 / self.spifreq)
         self.spi.writebytes([reg & 0x7F, value])
-        time.sleep(0.00001)
+        time.sleep(2 / self.spifreq)
         GPIO.output(self.ctrlCS, 1)
 
-    def __readFIFO(self):
+    def __readFIFOByte(self):
         GPIO.output(self.fifoCS, 0)
-        time.sleep(0.00001)
-        len = self.spi.readbytes(1)[0]
-        time.sleep(0.00001)
+        time.sleep(2 / self.spifreq)
+        ret = self.spi.readbytes(1)[0]
+        time.sleep(2 / self.spifreq)
         GPIO.output(self.fifoCS, 1)
-        l = [None] * len
-        for i in range(0, len):
-            GPIO.output(self.fifoCS, 0)
-            time.sleep(0.00001)
-            l[i] = self.spi.readbytes(1)[0]
-            time.sleep(0.00001)
-            GPIO.output(self.fifoCS, 1)
-        return l
+        return ret
+
+    def __readFIFO(self):
+        return [self.__readFIFOByte() for _ in range (self.__readFIFOByte())]
 
     def __writeFIFO(self, data):
         for i in data:
             GPIO.output(self.fifoCS, 0)
-            time.sleep(0.00001)
+            time.sleep(2 / self.spifreq)
             self.spi.writebytes([i])
-            time.sleep(0.00001)
+            time.sleep(2 / self.spifreq)
             GPIO.output(self.fifoCS, 1)
-            time.sleep(0.001)
 
     
